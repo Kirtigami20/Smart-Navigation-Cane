@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Navigation Tracker</title>
+
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #000624;
+      color: #333;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    header {
+      background: #013f71;
+      color: white;
+      padding: 15px 30px;
+      width: 100%;
+      text-align: center;
+      font-size: 1.6em;
+      font-weight: bold;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    }
+
+    #map {
+      height: 500px;
+      width: 90%;
+      margin-top: 20px;
+      border-radius: 12px;
+      box-shadow: 0 3px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    #alertBox {
+      margin-top: 20px;
+      padding: 15px 25px;
+      border-radius: 10px;
+      font-size: 1.2em;
+      font-weight: bold;
+      display: none;
+      text-align: center;
+      width: 80%;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+    }
+
+    .alert {
+      background-color: #ff4b4b;
+      color: white;
+      animation: blink 1s infinite;
+    }
+
+    .safe {
+      background-color: #4CAF50;
+      color: white;
+    }
+
+    @keyframes blink {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.5;
+      }
+    }
+
+    footer {
+      margin-top: 25px;
+      font-size: 0.9em;
+      color: #666;
+    }
+
+    .loading {
+      margin-top: 20px;
+      color: #555;
+      font-style: italic;
+    }
+  </style>
+</head>
+
+<body>
+  <header>Smart Navigation Tracker</header>
+
+  <div id="map"></div>
+  <div id="alertBox" class="safe">Status: Waiting for Data...</div>
+  <div id="loading" class="loading">⏳ Fetching live GPS data...</div>
+
+  <audio id="beepSound" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg" preload="auto"></audio>
+
+  <footer><b></b></footer>
+
+  <script>
+    let map, marker;
+    const alertBox = document.getElementById("alertBox");
+    const loadingText = document.getElementById("loading");
+    const beepSound = document.getElementById("beepSound");
+
+   const localServer = "http://10.56.48.17:5000/get_data";
+  // <-- Change to your Flask server IP
+    const updateInterval = 5000; // 5 seconds
+
+    function initMap() {
+      const startLocation = { lat: 0, lng: 0 };
+      map = new google.maps.Map(document.getElementById("map"), {
+        zoom: 4,
+        center: startLocation,
+      });
+      marker = new google.maps.Marker({
+        position: startLocation,
+        map: map,
+        title: "Device Location",
+      });
+      fetchData();
+      setInterval(fetchData, updateInterval);
+    }
+
+    async function fetchData() {
+      try {
+        const response = await fetch(localServer);
+        const data = await response.json();
+
+        const lat = parseFloat(data.lat);
+        const lon = parseFloat(data.lon);
+        const msg = data.msg;
+
+        if (!isNaN(lat) && !isNaN(lon) && (lat !== 0 && lon !== 0)) {
+          updateMap(lat, lon);
+          loadingText.style.display = "none";
+        }
+        updateAlert(msg);
+      } catch (error) {
+        console.error("Error fetching local data:", error);
+      }
+    }
+
+    function updateMap(lat, lon) {
+      const newPos = { lat, lng: lon };
+      marker.setPosition(newPos);
+      map.setCenter(newPos);
+      map.setZoom(15);
+    }
+
+    function updateAlert(message) {
+      alertBox.style.display = "block";
+      if (message && message.includes("ALERT")) {
+        alertBox.textContent = "🚨 ALERT: SOS Button Pressed!";
+        alertBox.className = "alert";
+        beepSound.loop = true;
+        beepSound.play();
+      } else {
+        alertBox.textContent = "✅ Status: SAFE";
+        alertBox.className = "safe";
+        beepSound.loop = false;
+        beepSound.pause();
+        beepSound.currentTime = 0;
+      }
+    }
+  </script>
+
+  <!-- Load Google Maps API -->
+  <script async defer
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCiEdxymG-ZrL82n6mXsZOsKWu-4hahqM4&callback=initMap">
+    </script>
+</body>
+
+</html>
